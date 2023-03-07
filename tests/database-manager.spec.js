@@ -1,10 +1,7 @@
 var _ = require('lodash'),
   expect = require('chai').expect,
   dbManagerFactory = require('../lib').databaseManagerFactory,
-  Bluebird = require('bluebird'),
   Knex = require('knex');
-
-Bluebird.longStackTraces();
 
 var connection = {
   host: 'localhost',
@@ -26,7 +23,7 @@ var migrations = {
 var postgresConf = {
   knex: {
     client: 'postgres',
-    connection: _.assign({}, connection, {
+    connection: Object.assign({}, connection, {
       port: 15432,
     }),
     pool: pool,
@@ -43,7 +40,7 @@ var postgresConf = {
 var postgresConf10 = {
   knex: {
     client: 'postgres',
-    connection: _.assign({}, connection, {
+    connection: Object.assign({}, connection, {
       port: 25432,
     }),
     pool: pool,
@@ -60,7 +57,7 @@ var postgresConf10 = {
 var mySqlConf = {
   knex: {
     client: 'mysql',
-    connection: _.assign({}, connection, {
+    connection: Object.assign({}, connection, {
       port: 13306,
     }),
     pool: pool,
@@ -95,7 +92,7 @@ var sqliteConf = {
 var oracleConf = {
   knex: {
     client: 'oracledb',
-    connection: _.assign({}, connection, {
+    connection: Object.assign({}, connection, {
       port: 1521,
       connectString: 'localhost/XE',
       stmtCacheSize: 0,
@@ -113,7 +110,7 @@ var oracleConf = {
 var mssqlConf = {
   knex: {
     client: 'mssql',
-    connection: _.assign({}, connection, {
+    connection: Object.assign({}, connection, {
       port: 11433,
     }),
     pool: pool,
@@ -127,7 +124,7 @@ var mssqlConf = {
 };
 
 function knexWithCustomDb(dbManager, dbName) {
-  var tempKnex = _.cloneDeep(dbManager.config.knex);
+  var tempKnex = structuredClone(dbManager.config.knex);
   tempKnex.client.database = dbName;
   return Knex(tempKnex);
 }
@@ -161,155 +158,155 @@ var availableDatabases = [
 
 var dbCopyName = 'dbmanger-test-database-copy-deleteme';
 
-_.map(availableDatabases, function(db) {
+availableDatabases.map(function (db) {
   let dbManager = db.manager;
 
-  describe('Testing ' + db.name, function() {
-    before(function() {
+  describe('Testing ' + db.name, function () {
+    before(function () {
       // Make sure that database does not exist
-      return dbManager.createDbOwnerIfNotExist().then(function() {
-        return Bluebird.all([
+      return dbManager.createDbOwnerIfNotExist().then(function () {
+        return Promise.all([
           dbManager.dropDb(dbManager.config.knex.connection.database),
           dbManager.dropDb(dbCopyName),
         ]);
       });
     });
 
-    after(function() {
+    after(function () {
       return dbManager.close();
     });
 
-    it('#knexInstance should fail to create an instance with non existing db', function() {
+    it('#knexInstance should fail to create an instance with non existing db', function () {
       var knex = dbManager.knexInstance();
       return knex
         .raw('SELECT 1')
-        .then(function() {
+        .then(function () {
           expect('Expected error from DB').to.fail();
         })
-        .catch(function() {
+        .catch(function () {
           expect('All good!').to.be.string;
         });
     });
 
-    it('#createDb should create a database', function() {
+    it('#createDb should create a database', function () {
       return dbManager
         .createDb(dbManager.config.knex.connection.database)
-        .then(function() {
+        .then(function () {
           // connecting db should work
           var knex = dbManager.knexInstance();
           return knex.raw('SELECT 1');
         });
     });
 
-    it('#migrateDb should update version and run migrations', function() {
+    it('#migrateDb should update version and run migrations', function () {
       return dbManager
         .dbVersion(dbManager.config.knex.connection.database)
-        .then(function(originalVersionInfo) {
+        .then(function (originalVersionInfo) {
           expect(originalVersionInfo).to.equal('none');
           return dbManager.migrateDb(dbManager.config.knex.connection.database);
         })
-        .then(function(migrateResponse) {
+        .then(function (migrateResponse) {
           expect(migrateResponse[0]).to.equal(1);
           return dbManager.dbVersion(dbManager.config.knex.connection.database);
         })
-        .then(function(versionInfo) {
+        .then(function (versionInfo) {
           expect(versionInfo).to.equal('20150623130922');
           return dbManager.migrateDb(dbManager.config.knex.connection.database);
         })
-        .then(function(migrateResponse) {
+        .then(function (migrateResponse) {
           expect(migrateResponse[0]).to.equal(2);
           return dbManager.migrateDb(dbManager.config.knex.connection.database);
         })
-        .then(function(migrateResponse) {
+        .then(function (migrateResponse) {
           expect(migrateResponse[0]).to.equal(2);
           return dbManager.dbVersion(dbManager.config.knex.connection.database);
         })
-        .then(function(versionInfo) {
+        .then(function (versionInfo) {
           expect(versionInfo).to.equal('20150623130922');
           return dbManager.migrateDb(dbManager.config.knex.connection.database);
         });
     });
 
-    it('#populateDb should populate data from given directory', function() {
+    it('#populateDb should populate data from given directory', function () {
       return dbManager
         .populateDb(__dirname + '/populate/*-data.js')
-        .then(function() {
+        .then(function () {
           var knex = dbManager.knexInstance();
           return knex
             .select()
             .from('User')
-            .then(function(result) {
+            .then(function (result) {
               expect(parseInt(result[0].id)).to.equal(1);
             });
         });
     });
 
-    it('#populateDb should populate data from given directory with seeding old export', function() {
+    it('#populateDb should populate data from given directory with seeding old export', function () {
       return dbManager
         .populateDb(__dirname + '/populate/*-old.js')
-        .then(function() {
+        .then(function () {
           var knex = dbManager.knexInstance();
-          return Bluebird.all([
+          return Promise.all([
             knex
               .select()
               .from('User')
-              .then(function(result) {
+              .then(function (result) {
                 expect(parseInt(result[0].id)).to.equal(1);
               }),
             knex
               .select()
               .from('Pet')
-              .then(function(result) {
+              .then(function (result) {
                 expect(parseInt(result[0].id)).to.equal(1);
               }),
           ]);
         });
     });
 
-    it('#copyDb should copy a database', function() {
+    it('#copyDb should copy a database', function () {
       // CopyDB not implemented on MySqlDatabaseManager yet...
       if (dbManager.config.knex.client === 'mysql') {
         return;
       }
       return dbManager
         .copyDb(dbManager.config.knex.connection.database, dbCopyName)
-        .then(function() {
+        .then(function () {
           var knex = knexWithCustomDb(dbManager, dbCopyName);
-          return Bluebird.resolve(
+          return Promise.resolve(
             knex
               .select()
               .from('User')
-              .then(function(result) {
+              .then(function (result) {
                 expect(result[0].id).to.equal('1');
               })
-          ).finally(function() {
+          ).finally(function () {
             knex.destroy();
           });
         });
     });
 
-    it('#truncateDb should truncate a database', function() {
+    it('#truncateDb should truncate a database', function () {
       return dbManager
         .truncateDb([migrations.tableName, 'Ignoreme'])
-        .then(function(result) {
+        .then(function (result) {
           var knex = dbManager.knexInstance();
 
-          return Bluebird.all([
+          return Promise.all([
             knex
               .select()
               .from('User')
-              .then(function(result) {
+              .then(function (result) {
                 expect(result.length).to.equal(0);
               }),
             knex
               .select()
               .from('Ignoreme')
-              .then(function(result) {
+              .then(function (result) {
                 expect(result.length).to.equal(1);
               }),
             dbManager
               .dbVersion(dbManager.config.knex.connection.database)
-              .then(function(ver) {
+              .then(function (ver) {
                 expect(ver).to.equal('20150623130922');
               }),
             knex('User')
@@ -317,17 +314,17 @@ _.map(availableDatabases, function(db) {
                 username: 'new',
                 email: 'imtadmin@fake.invalid',
               })
-              .then(function() {
+              .then(function () {
                 return knex.select().from('User');
               })
-              .then(function(result) {
+              .then(function (result) {
                 expect(parseInt(result[0].id)).to.equal(1);
               }),
           ]);
         });
     });
 
-    it('#updateIdSequences should update primary key sequences', function() {
+    it('#updateIdSequences should update primary key sequences', function () {
       // UpdateIdSequences not implemented on MySqlDatabaseManager yet...
       if (dbManager.config.knex.client === 'mysql') {
         return;
@@ -341,28 +338,25 @@ _.map(availableDatabases, function(db) {
           { id: 6, username: 'new2', email: 'new_2@example.com' },
           { id: 7, username: 'new3', email: 'new_3@example.com' },
         ])
-        .then(function() {
+        .then(function () {
           return dbManager.updateIdSequences();
         })
-        .then(function() {
+        .then(function () {
           return knex('User').insert({
             username: 'new4',
             email: 'new_4@example.com',
           });
         })
-        .then(function() {
-          return knex
-            .select()
-            .where('username', 'new4')
-            .from('User');
+        .then(function () {
+          return knex.select().where('username', 'new4').from('User');
         })
-        .then(function(users) {
+        .then(function (users) {
           expect(users.length).to.equal(1);
           expect(users[0].id).to.equal('8');
         });
     });
 
-    it('#updateIdSequences should work with empty table and with minimum value other than 1', function() {
+    it('#updateIdSequences should work with empty table and with minimum value other than 1', function () {
       // UpdateIdSequences not implemented on MySqlDatabaseManager yet...
       if (dbManager.config.knex.client === 'mysql') {
         return;
@@ -373,7 +367,7 @@ _.map(availableDatabases, function(db) {
       return knex
         .select()
         .from('IdSeqTest')
-        .then(function(result) {
+        .then(function (result) {
           expect(result.length).to.equal(0);
 
           // Set min value of sequence to other than 1 (100),
@@ -382,78 +376,78 @@ _.map(availableDatabases, function(db) {
             'ALTER SEQUENCE "IdSeqTest_id_seq" START 200 RESTART WITH 200 MINVALUE 100 '
           );
         })
-        .then(function() {
+        .then(function () {
           // DB manager caches the sequence names and min values,
           // so the cache needs to be reset.
           dbManager._cachedIdSequences = null;
           return dbManager.updateIdSequences();
         })
-        .then(function() {
+        .then(function () {
           return knex('IdSeqTest').insert({
             value: 'foo',
           });
         })
-        .then(function() {
+        .then(function () {
           return knex.select().from('IdSeqTest');
         })
-        .then(function(result) {
+        .then(function (result) {
           expect(result.length).to.equal(1);
           expect(result[0].id).to.equal('100');
         });
     });
 
-    it('#dropDb should drop a database', function() {
-      return Bluebird.all([
+    it('#dropDb should drop a database', function () {
+      return Promise.all([
         dbManager.dropDb(dbManager.config.knex.connection.database),
         dbManager.dropDb(dbCopyName),
         dbManager.dropDb(dbCopyName), // this should not fail
       ])
-        .then(function() {
+        .then(function () {
           // test db was dropped
           var knex = dbManager.knexInstance();
           return knex
             .raw('SELECT 1')
-            .then(function() {
+            .then(function () {
               expect('Expected error from DB').to.fail();
             })
-            .catch(function(err) {
+            .catch(function (err) {
               expect('All good!').to.be.string;
             });
         })
-        .then(function() {
+        .then(function () {
           var knex = knexWithCustomDb(dbManager, dbCopyName);
-          return Bluebird.resolve(
+          return Promise.resolve(
             knex
               .raw('SELECT 1')
-              .then(function() {
+              .then(function () {
                 expect('Expected error from DB').to.fail();
               })
-              .catch(function() {
+              .catch(function () {
                 expect(!!'All good!').to.be.string;
               })
-          ).finally(function() {
+          ).finally(function () {
             knex.destroy();
           });
         });
     });
 
-    it('should reconnect if used after .close', function() {
+    it('should reconnect if used after .close', function () {
       return dbManager
         .close()
-        .then(function() {
+        .then(function () {
           return dbManager.dropDb();
         })
-        .then(function() {
+        .then(function () {
           return dbManager.createDb();
         })
-        .then(function() {
+        .then(function () {
           return dbManager.migrateDb();
         });
     });
 
-    it('should create database with default collate', function() {
+    it('should create database with default collate', function () {
       dbManager.config.dbManager.collate = null;
-      return dbManager.dropDb().then(function() {
+      return dbManager.dropDb().then(function () {
         return dbManager.createDb();
       });
     });
@@ -473,16 +467,16 @@ describe('Postgresql only tests', () => {
   before(() => manager1.dropDb('testdb2'));
 
   after(() => {
-    return Bluebird.all([
+    return Promise.all([
       manager1.dropDb('testdb1'),
       manager1.dropDb('testdb2'),
     ]).then(() => {
-      return Bluebird.all([manager1.close(), manager2.close()]);
+      return Promise.all([manager1.close(), manager2.close()]);
     });
   });
 
   it('should be able to create 2 DBs with 2 clients at the same time', () => {
-    return Bluebird.all([
+    return Promise.all([
       manager1.createDb('testdb1'),
       manager2.createDb('testdb2'),
     ]);
