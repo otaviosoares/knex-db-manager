@@ -49,7 +49,7 @@
     "lodash": "^4.17.21"
   },
   "peerDependencies": {
-    "knex": "2.x",
+    "knex": "2.x || 3.x",
     "mysql": "2.x",
     "mysql2": "3.x"
   },
